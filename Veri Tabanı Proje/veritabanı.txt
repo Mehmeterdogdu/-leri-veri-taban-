@@ -1,0 +1,43 @@
+DELIMITER $$
+CREATE TRIGGER update_result
+AFTER INSERT ON scores
+FOR EACH ROW
+BEGIN
+UPDATE results 
+LEFT JOIN scores ON NEW.match_id=results.match_id
+LEFT JOIN matches ON matches.match_id=results.match_id
+SET home=if(NEW.team_id = matches.home_id,(SELECT home from results WHERE results.match_id = NEW.match_id)+NEW.goals,home),
+away=if(NEW.team_id = matches.away_id,(SELECT away from results WHERE results.match_id = NEW.match_id)+NEW.goals,away)
+WHERE results.match_id = NEW.match_id;
+END$$
+DELIMITER ;
+
+DELIMITER &&
+CREATE PROCEDURE show_home_name (IN var1 varchar(50))
+BEGIN
+SELECT * FROM `show_fikstür` WHERE home_name=var1 or away_name=var1;
+END &&
+DELIMITER ;
+
+SET @name = varchardeğeri;
+CALL show_home_name(@name);
+SELECT @name;
+
+CREATE TRIGGER add_result
+AFTER INSERT ON matches
+FOR EACH ROW 
+INSERT INTO `results`(`match_id`, `home`, `away`) VALUES (NEW.match_id,0,0);
+
+Create view show_fikstür as
+SELECT t1.team_name as home_name,t2.team_name as away_name,`match_date`,results.home as home_skor, results.away as away_skor
+FROM matches 
+JOIN teams AS t1 ON home_id= t1.team_id
+JOIN teams AS t2 on away_id= t2.team_id
+LEFT JOIN results  on matches.match_id=results.match_id
+
+CREATE VIEW player_informations AS
+SELECT teams.team_name, first_name, last_name, age, position, country,COALESCE(SUM(scores.goals),0) as goal ,COALESCE(SUM(scores.assists),0) as asist
+FROM players
+LEFT JOIN teams ON players.team_id = teams.team_id
+LEFT JOIN scores on players.player_id = scores.player_id
+GROUP BY (players.player_id)
